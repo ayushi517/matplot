@@ -1,0 +1,938 @@
+Practical 10- Decision Tree
+Decision Tree Models on iris Dataset
+Decision tree classification on the iris dataset using different tree-building algorithms. 
+1. Load & Prepare Data
+mydata <- data.frame(iris)  # Convert iris dataset into a dataframe
+attach(mydata)  # Attach dataset for direct column access
+•	iris contains 4 numeric features and 1 categorical target (Species).
+2. Decision Tree using rpart (CART Algorithm)
+install.packages("rpart")  # Install package (if not installed)
+library(rpart)
+model <- rpart(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width,
+               data = mydata, method = "class")
+# rpart uses CART (Classification and Regression Trees).
+•	Splits data using Gini impurity (default).
+•	The tree visualization shows decision splits for Species.
+library(rpart.plot)
+rpart.plot(model, type = 3, extra = 101, fallen.leaves = TRUE) 
+1.	Root Node (Topmost Node)
+•	Condition: Petal.Length < 2.5
+•	This is the first split, chosen because it best separates the species.
+Left Branch (If Petal.Length < 2.5)
+•	Predicted Class: Setosa
+•	Class Distribution: 50 / 0 / 0
+o	50 Setosa
+o	0 Versicolor
+o	0 Virginica
+•	Percentage: 33% (since the dataset has 150 samples)
+•	This node is pure (contains only one class), meaning all samples below this threshold belong to Setosa.
+2. Right Branch (If Petal.Length >= 2.5)
+•	Moves to the next decision node, which further splits the remaining 100 samples.
+Next Split Condition: Petal.Width < 1.8
+•	This separates Versicolor from Virginica.
+Left Branch (If Petal.Width < 1.8)
+•	Predicted Class: Versicolor
+•	Class Distribution: 0 / 49 / 5
+o	0 Setosa
+o	49 Versicolor
+o	5 Virginica
+•	Percentage: 36%
+•	This node is mostly Versicolor, but has some misclassification (5 Virginica samples incorrectly classified).
+Right Branch (If Petal.Width >= 1.8)
+•	Predicted Class: Virginica
+•	Class Distribution: 0 / 1 / 45
+o	0 Setosa
+o	1 Versicolor
+o	45 Virginica
+•	Percentage: 31%
+•	This node is almost pure, with just one misclassified Versicolor sample.
+
+3. Decision Tree using tree Package
+install.packages("tree")  # Install package (if not installed)
+library(tree)
+model1 <- tree(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width,
+               data = mydata)
+plot(model1)
+text(model1, all = TRUE, cex = 0.6)  # Smaller text for better readability
+•	Another implementation of a decision tree classifier.
+•	Uses entropy or Gini impurity for splits.
+•	Differences from rpart:
+o	The tree package produces a deeper tree with more splits, whereas rpart (CART) tends to create a simpler tree with pruning options.
+o	The tree package does not have built-in pruning but allows manual pruning using prune.tree().
+o	rpart can handle missing values and offers cost-complexity pruning (cp parameter)..
+
+4. Decision Tree using party (Conditional Inference Trees)
+install.packages("party")  # Install package (if not installed)
+library(party)
+model2 <- ctree(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width,
+                data = mydata)
+plot(model2)
+•	ctree() creates a Conditional Inference Tree.
+•	Uses statistical tests (not Gini/entropy) to find the best splits.
+•	Can reduce bias in variable selection compared to rpart.
+
+5. Tuning Tree Parameters (tree Package)
+model1 <- tree(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width, data = mydata, control = tree.control(nobs = nrow(mydata), mincut = 10))# Min. 10 observations per split
+
+plot(model1)
+text(model1, all = TRUE, cex = 0.6)
+•	mincut = 10 ensures each split has at least 10 observations.
+•	Helps prevent overfitting.
+
+6. Making Predictions
+predict(model1, iris)  # Predict species using tree model
+•	Outputs probabilities for each class (setosa, versicolor, virginica).
+•	Can be converted into class labels using predict(model1, iris, type = "class").
+7. Controlling Tree Depth (party Package)
+model2 <- ctree(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width,
+                data = mydata, controls = ctree_control(maxdepth = 2))
+
+plot(model2)
+•	Limits the maximum depth of the tree to 2.
+•	Helps simplify the tree structure and avoid overfitting.
+
+Evaluating Decision Tree Performance using Accuracy Metrics
+Now, let's compare the performance of rpart, tree, and party (ctree) decision trees using accuracy metrics.
+
+1. Load Required Libraries
+install.packages("caret")  # Install caret for model evaluation
+library(caret)
+install.packages("e1071")  # Needed for confusion matrix
+library(e1071)
+•	caret provides tools for classification accuracy.
+•	e1071 is required for computing the confusion matrix.
+
+2. Split Data into Training & Testing Sets
+set.seed(123)  # For reproducibility
+train_index <- createDataPartition(mydata$Species, p = 0.7, list = FALSE)
+train_data <- mydata[train_index, ]  # 70% training data
+test_data <- mydata[-train_index, ]  # 30% testing data
+•	createDataPartition ensures stratified sampling (equal class distribution).
+•	Splitting helps evaluate the model on unseen data.
+
+3. Train Decision Tree Models
+(A) Using rpart (CART)
+model_rpart <- rpart(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width,
+                      data = train_data, method = "class")
+
+pred_rpart <- predict(model_rpart, test_data, type = "class")
+conf_matrix_rpart <- confusionMatrix(pred_rpart, test_data$Species)
+print(conf_matrix_rpart)
+•	Generates a confusion matrix to measure model accuracy.
+•	Key Metrics:
+o	Accuracy
+o	Sensitivity (Recall)
+o	Specificity
+o	Kappa (Agreement beyond chance)
+
+(B) Using tree
+model_tree <- tree(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width,
+                    data = train_data)
+
+pred_tree <- predict(model_tree, test_data, type = "class")
+conf_matrix_tree <- confusionMatrix(pred_tree, test_data$Species)
+print(conf_matrix_tree)
+•	Similar accuracy check for tree-based classification.
+
+(C) Using party (ctree)
+model_ctree <- ctree(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width,
+                      data = train_data)
+
+pred_ctree <- predict(model_ctree, test_data)
+conf_matrix_ctree <- confusionMatrix(pred_ctree, test_data$Species)
+print(conf_matrix_ctree)
+•	Conditional inference trees (ctree) work differently from rpart and tree.
+•	Uses statistical tests instead of impurity measures.
+
+4. Compare Accuracy Scores
+accuracy_rpart <- conf_matrix_rpart$overall["Accuracy"]
+accuracy_tree <- conf_matrix_tree$overall["Accuracy"]
+accuracy_ctree <- conf_matrix_ctree$overall["Accuracy"]
+
+accuracy_results <- data.frame(Model = c("rpart", "tree", "ctree"),
+                               Accuracy = c(accuracy_rpart, accuracy_tree, accuracy_ctree))
+
+print(accuracy_results)
+•	Displays accuracy for all three models in a table.
+•	Helps determine which model performs best.
+
+5. Visualizing Performance with a Bar Plot
+barplot(accuracy_results$Accuracy, names.arg = accuracy_results$Model,
+        col = c("red", "blue", "green"), main = "Decision Tree Model Accuracy",
+        ylab = "Accuracy", ylim = c(0, 1))
+•	Bar plot for model comparison.
+ 
+
+Q 2) Decision Tree on mtcars Dataset 
+1. Load & Prepare Data
+# Load dataset
+mydata <- data.frame(mtcars)
+mydata$cyl <- as.factor(mydata$cyl)  # Convert 'cyl' to a categorical variable
+
+# Check structure
+str(mydata)
+•	mtcars is a regression dataset (numeric variables).
+•	We'll predict cylinders (cyl) as a classification problem.
+
+2. Split Data into Training & Testing Sets
+set.seed(123)
+train_index <- createDataPartition(mydata$cyl, p = 0.7, list = FALSE)
+
+train_data <- mydata[train_index, ]  # 70% training data
+test_data <- mydata[-train_index, ]  # 30% testing data
+•	Ensures balanced class distribution across train & test sets.
+
+3. Build Decision Tree Models
+(A) Using rpart (CART)
+install.packages("rpart")
+library(rpart)
+# Train decision tree
+model_rpart <- rpart(cyl ~ mpg + hp + wt + disp, data = train_data, method = "class")
+# Plot tree
+plot(model_rpart)
+text(model_rpart, use.n = TRUE, all = TRUE, cex = 0.8)
+# Predict & Evaluate
+pred_rpart <- predict(model_rpart, test_data, type = "class")
+conf_matrix_rpart <- confusionMatrix(pred_rpart, test_data$cyl)
+print(conf_matrix_rpart)
+•	Predicts cyl (number of cylinders) based on mpg, hp, wt, and disp.
+•	Uses Gini impurity for splits.
+
+(B) Using tree
+install.packages("tree")
+library(tree)
+model_tree <- tree(cyl ~ mpg + hp + wt + disp, data = train_data)
+plot(model_tree)
+text(model_tree, all = TRUE, cex = 0.6)
+
+# Predict & Evaluate
+pred_tree <- predict(model_tree, test_data, type = "class")
+conf_matrix_tree <- confusionMatrix(pred_tree, test_data$cyl)
+print(conf_matrix_tree)
+•	Uses entropy/Gini impurity for splitting.
+•	Outputs classification accuracy.
+(C) Using ctree (Conditional Trees)
+install.packages("party")
+library(party)
+model_ctree <- ctree(cyl ~ mpg + hp + wt + disp, data = train_data)
+plot(model_ctree)
+# Predict & Evaluate
+pred_ctree <- predict(model_ctree, test_data)
+conf_matrix_ctree <- confusionMatrix(pred_ctree, test_data$cyl)
+print(conf_matrix_ctree)
+•	Uses statistical tests for splits instead of impurity measures.
+4. Fine-Tuning Trees
+(A) Fine-Tuning rpart
+model_rpart_tuned <- rpart(cyl ~ mpg + hp + wt + disp, data = train_data, method = "class",
+                            control = rpart.control(maxdepth = 3))
+pred_rpart_tuned <- predict(model_rpart_tuned, test_data, type = "class")
+conf_matrix_rpart_tuned <- confusionMatrix(pred_rpart_tuned, test_data$cyl)
+print(conf_matrix_rpart_tuned)
+•	Limits tree depth to prevent overfitting.
+(B) Fine-Tuning tree
+model_tree_tuned <- tree(cyl ~ mpg + hp + wt + disp, data = train_data,
+                          control = tree.control(nobs = 22, mincut = 5))
+
+pred_tree_tuned <- predict(model_tree_tuned, test_data, type = "class")
+conf_matrix_tree_tuned <- confusionMatrix(pred_tree_tuned, test_data$cyl)
+print(conf_matrix_tree_tuned)
+•	Uses minimum cut-off for splits to prevent overfitting.
+
+(C) Fine-Tuning ctree
+model_ctree_tuned <- ctree(cyl ~ mpg + hp + wt + disp, data = train_data,
+                            controls = ctree_control(maxdepth = 3, minsplit = 5))
+
+pred_ctree_tuned <- predict(model_ctree_tuned, test_data)
+conf_matrix_ctree_tuned <- confusionMatrix(pred_ctree_tuned, test_data$cyl)
+print(conf_matrix_ctree_tuned)
+•	Limits tree depth and split size to improve generalization.
+
+5. Cross-Validation on rpart
+set.seed(123)
+train_control <- trainControl(method = "cv", number = 10)
+cv_model_rpart <- train(cyl ~ mpg + hp + wt + disp, data = train_data, method = "rpart",
+                         trControl = train_control)
+
+pred_cv_rpart <- predict(cv_model_rpart, test_data)
+conf_matrix_cv_rpart <- confusionMatrix(pred_cv_rpart, test_data$cyl)
+print(conf_matrix_cv_rpart)
+•	Performs 10-fold cross-validation to improve model selection.
+
+6. Compare Accuracy of All Models
+accuracy_results <- data.frame(Model = c("rpart", "tree", "ctree", "rpart (Tuned)", "tree (Tuned)", "ctree (Tuned)"),
+                               Accuracy = c(conf_matrix_rpart$overall["Accuracy"],
+                                            conf_matrix_tree$overall["Accuracy"],
+                                            conf_matrix_ctree$overall["Accuracy"],
+                                            conf_matrix_rpart_tuned$overall["Accuracy"],
+                                            conf_matrix_tree_tuned$overall["Accuracy"],
+                                            conf_matrix_ctree_tuned$overall["Accuracy"]))
+
+print(accuracy_results)
+
+# Bar Plot for Accuracy Comparison
+barplot(accuracy_results$Accuracy, names.arg = accuracy_results$Model,
+        col = rainbow(6), main = "Decision Tree Model Accuracy (mtcars)",
+        ylab = "Accuracy", ylim = c(0, 1))
+•	Visualizes model performance after fine-tuning.
+
+
+-----------------------------------------------------------------------------------------------------------------
+Practical 7 - Clustering
+Aim: Clustering
+Q1) k-means clustering 
+# Read data
+data("iris")
+names(iris)
+ #subset(): Filters rows or columns based on conditions.
+ #select = -Species: Selects all columns except the Species column.
+new_data<-subset(iris,select = c(-Species))
+new_data
+#kmeans(): Performs K-means clustering.
+cl<-kmeans(new_data,3)
+cl
+data <- new_data
+#Calculates the total within-cluster sum of squares (WSS) for different values of k
+wss <- sapply(1:15,  function(k){kmeans(data, k )$tot.withinss})
+wss
+#To visualize how WSS changes with different values of kkk and find the "elbow" (the optimal number of clusters)
+plot(1:15, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+#Visualizing the clusters
+install.packages("cluster")
+library(cluster)
+clusplot(new_data, cl$cluster, color=TRUE, shade=TRUE,  labels=2, lines=0)
+#To displays the cluster assignments for each data point in the new_data dataset.
+cl$cluster
+#To display the centroids of the clusters.
+cl$centers
+
+
+Q2) Hierarchical Clustering: Agglomerative clustering 
+# Read data
+data("iris")
+names(iris)
+#To performs hierarchical clustering
+clusters <- hclust(dist(iris[, 3:4]))
+•	iris[, 3:4]: Selects the Petal.Length and Petal.Width columns from the iris dataset.
+•	dist(): Computes the pairwise distance matrix between the selected columns (i.e., between the Petal.Length and Petal.Width of each flower).
+•	hclust(): Performs hierarchical clustering using the distance matrix computed by dist(). The result is an object that contains the clustering hierarchy (dendrogram).
+#To visualize the hierarchical clustering,
+#To plot the dendrogram
+plot(clusters)
+•	cutree(clusters, 3): Cuts the hierarchical clustering dendrogram into 3 clusters. The result is a vector indicating the cluster assignment for each observation.
+•	table(clusterCut, iris$Species): Creates a contingency table that compares the cluster assignments (clusterCut) with the actual species labels (iris$Species).
+clusterCut <- cutree(clusters, 3)
+table(clusterCut, iris$Species)
+install.packages("ggplot2") 
+library(ggplot2)
+#To create a scatter plot of Petal.Length vs Petal.Width
+ggplot(iris, aes(Petal.Length, Petal.Width, color = iris$Species)) + 
+  geom_point(alpha = 0.4, size = 3.5) + geom_point(col = clusterCut) + 
+  scale_color_manual(values = c('black', 'red', 'green'))
+
+clusters <- hclust(dist(iris[, 3:4]), method = 'average')
+clusterCut1 <- cutree(clusters, 3)
+table(clusterCut1, iris$Species)
+
+plot(clusters)
+ggplot(iris, aes(Petal.Length, Petal.Width, color = iris$Species)) + 
+  geom_point(alpha = 0.4, size = 3.5) + geom_point(col = clusterCut1) + 
+  scale_color_manual(values = c('black', 'red', 'green'))
+
+
+# Loading data
+data(iris)
+# Structure 
+str(iris)
+# Installing Packages
+install.packages("ClusterR")
+install.packages("cluster")
+
+# Loading package
+library(ClusterR)
+library(cluster)
+
+# Removing initial label of 
+# Species from original dataset
+iris_1 <- iris[, -5]
+
+# Fitting K-Means clustering Model 
+# to training dataset
+set.seed(240) # Setting seed
+kmeans.re <- kmeans(iris_1, centers = 3, nstart = 20)
+kmeans.re
+
+# Cluster identification for 
+# each observation
+kmeans.re$cluster
+
+# Confusion Matrix
+cm <- table(iris$Species, kmeans.re$cluster)
+cm
+
+# Model Evaluation and visualization
+plot(iris_1[c("Sepal.Length", "Sepal.Width")])
+plot(iris_1[c("Sepal.Length", "Sepal.Width")], 
+     col = kmeans.re$cluster, 
+     main = "Clusters: Sepal Length vs Sepal Width", 
+     xlab = "Sepal Length", 
+     ylab = "Sepal Width", 
+     pch = 19)
+plot(iris_1[c("Sepal.Length", "Sepal.Width")], 
+     col = kmeans.re$cluster, 
+     main = "K-means with 3 clusters")
+
+## Plotiing cluster centers
+kmeans.re$centers
+kmeans.re$centers[, c("Sepal.Length", "Sepal.Width")]
+
+# cex is font size, pch is symbol
+points(kmeans.re$centers[, c("Sepal.Length", "Sepal.Width")], 
+       col = 1:3, pch = 8, cex = 3) 
+
+## Visualizing clusters
+y_kmeans <- kmeans.re$cluster
+clusplot(iris_1[, c("Sepal.Length", "Sepal.Width")],
+         y_kmeans,
+         lines = 0,
+         shade = TRUE,
+         color = TRUE,
+         labels = 2,
+         plotchar = FALSE,
+         span = TRUE,
+         main = paste("Cluster iris"),
+         xlab = "Sepal.Length",
+         ylab = "Sepal.Width")
+
+
+------------------------------------------------------------------------------------------------------------------------
+Practical 9- Time-series forecasting
+#The dataset consists of monthly totals of international airline passengers, 1949 to 1960.Main aim is to predict next ten years.
+#The dataset shows the number of passengers travelling on a flight for all the months in a year.
+AirPassengers
+View(AirPassengers)
+#This tell us that the data series is in a time series format
+class(AirPassengers)  # This indicates that AirPassengers is an object of class "ts", meaning it is a time series object in R.
+str(AirPassengers)
+start(AirPassengers)
+end(AirPassengers)
+# The start() and end() functions give the start and end times of a time series object. The AirPassengers dataset contains monthly airline passenger numbers from 1949 to 1960.
+frequency(AirPassengers)
+# The function frequency(AirPassengers) in R returns the number of observations per unit time in a time series object. This cycle of the time series is 12 months in a year.
+summary(AirPassengers)
+#Exploring the data 
+# Visualization of data
+plot(AirPassengers) 
+•	This command plots the AirPassengers dataset as a time series graph.
+•	The x-axis represents time (years from 1949 to 1960).
+•	The y-axis represents the number of airline passengers.
+•	The plot shows an increasing trend and seasonal fluctuations (higher passenger numbers in certain months).
+•	Upward trend: The number of passengers increases over time.
+•	Seasonality: Recurring peaks indicate seasonal patterns in air travel.
+•	Variability increases: The fluctuations become larger as the number of passengers increases.
+#The abline() function can be used to add vertical, horizontal or regression lines to plot.
+abline(reg=lm(AirPassengers~time(AirPassengers)))
+•	Adds a regression (trend) line to the existing plot(AirPassengers).
+•	Uses lm(AirPassengers ~ time(AirPassengers)) to fit a linear model where:
+•	AirPassengers is the dependent variable.
+•	time(AirPassengers) provides the time index as the independent variable.
+•	abline() then draws the fitted regression line on the plot.
+•	This trend line helps visualize the overall growth in airline passengers over time.
+•	If the data shows an upward sloping line, it confirms an increasing trend in air travel.
+•	Since AirPassengers exhibits seasonality and exponential growth, a simple linear trend may not perfectly fit the data. For a better fit, consider log transformation or exponential smoothing models
+#cycle gives the positions in the cycle of each observation
+cycle(AirPassengers)
+•	The cycle() function shows the position of each observation within a yearly cycle.
+•	Since AirPassengers is a monthly time series (frequency = 12), it returns values from 1 to 12, representing January to December.
+•	Each row represents a year (1949–1960).
+•	Each column represents a month (1 = Jan, 12 = Dec).
+•	This confirms the dataset follows a monthly seasonal cycle.
+#Check general trend.
+plot(aggregate(AirPassengers,FUN=mean)) 
+•	Aggregates the AirPassengers dataset by year and computes the mean number of passengers for each year.
+•	Plots the yearly mean values as a time series.
+•	The x-axis represents years (1949–1960).
+•	The y-axis represents the average number of passengers per year.
+•	The plot shows a clear increasing trend, meaning the number of airline passengers increased over time.
+#Let’s use the boxplot function to see any seasonal effects.
+boxplot(AirPassengers~cycle(AirPassengers))
+•	Creates a boxplot to visualize the seasonal variation in air passengers across months.
+•	Groups data by cycle(AirPassengers), which represents the month (1 = Jan, 12 = Dec).
+•	Each box represents the distribution of passenger counts for that month across years (1949–1960).
+•	Higher median values in mid-year months (June–August) → Peak travel season.
+•	Lower median values in early (Jan–Feb) and late (Nov–Dec) months → Off-season travel.
+•	Variability (box height and whiskers) shows how passenger numbers fluctuate within a month over the years.
+
+
+
+#Preprocessing the data
+acf(AirPassengers) 
+#spike crosses blue dotted line, data is not stationary
+•	Plots the Autocorrelation Function (ACF) for the AirPassengers dataset.
+•	Measures how current values of the time series are correlated with past values (lags).
+•	Helps identify seasonality and trends.
+•	Lag 12 shows a strong correlation → Indicates yearly seasonality (passenger numbers repeat patterns every 12 months).
+•	Gradual decline in correlations → Suggests a long-term trend (passengers increasing over time).
+•	Significant spikes at multiples of 12 (24, 36, etc.) → Confirms seasonal patterns.
+•	The data is non-stationary, indicating the need for differencing or trend adjustment for forecasting.
+#Non-stationarity is a condition where the mean, variance, or autocorrelation of a time series data change over time.
+acf(log(AirPassengers)) # To make variance stationary
+•	This command takes the natural logarithm of the AirPassengers data to reduce the exponential growth effect and make the time series more stationary.
+•	It then computes and plots the Autocorrelation Function (ACF) of the log-transformed dataset.
+•	Stabilizes variance: The AirPassengers dataset exhibits exponential growth over time. Applying a log transformation helps to stabilize the variance, making the series easier to model.
+•	Makes trend less dominant: The log transformation helps reduce the effect of the upward trend in the dataset, making it easier to focus on seasonal and autocorrelated patterns.
+•	The ACF plot will likely show similar seasonal patterns (significant correlation at lag 12, 24, 36, etc.) but with reduced correlation at higher lags, as the transformation mitigates the trend.
+acf(diff(log(AirPassengers))) #q=1, c(p,d,q) 
+•	diff(): Computes the first difference of the log-transformed series, which removes the trend and makes the data more stationary by focusing on changes between consecutive values.
+•	Trend Removal: The log transformation reduces the trend (growth), and differencing eliminates any remaining trend or seasonality.
+•	Stationarity: Differencing helps in making the time series stationary, which is a requirement for many time series models like ARIMA.
+•	p, d, q:
+When analysing time series data with ARIMA models, "p" represents the autoregressive component, "d" is the differencing order (how many times you difference the data), and "q" is the moving average component. 
+
+
+
+pacf(diff(log(AirPassengers))) #p=0
+#Here we can see that the first lag is significantly out of the limit and the second one is also out of the significant limit but it is not that far so we can select the order of the p as 0. 
+The command pacf(diff(log(AirPassengers))) in R is used to compute and plot the Partial Autocorrelation Function (PACF) of the differenced logarithm of the AirPassengers dataset. Here’s a breakdown of the steps:
+1.	log(AirPassengers)
+o	Takes the natural logarithm of the monthly international airline passenger numbers (1949–1960) to stabilize variance (reduce exponential growth effects).
+2.	diff(log(AirPassengers))
+o	Computes the first difference to make the time series stationary by removing trends.
+3.	pacf(diff(log(AirPassengers)))
+o	Plots the PACF to analyze the lagged dependencies after controlling for intermediate lags.
+
+plot(diff(log(AirPassengers))) # stationary or constant Means and varince 
+# Auto Regression Integration moving Average (ARIMA) Model Fitting
+(fit <- arima(log(AirPassengers), c(0, 1, 1),
+              seasonal = list(order = c(0, 1, 1), period = 12)))
+pred <- predict(fit, n.ahead = 10*12) # In log form
+#The above output prediction value are in logarithemic part,convert them to original form we need to transform them.
+pred1 <- round(2.718^pred$pred, 0) # Rounding value -> e = 2.718
+•	The command pred1 <- round(2.718^pred$pred, 0) is used to convert log-transformed predictions back to the original scale.
+
+pred1 # Prediction for next 10 Year(1961-1970)
+ts.plot(AirPassengers,pred1, log = "y", lty = c(1,3))
+#In above graph, dark(solid) line is original values and dotted are predicted values
+#Get only 1961 values
+data1<-head(pred1,12)
+data1
+#we are going to take a dataset till 1959, and then we predict value of 1960, then validate that 1960 from already existing value we have it in dataset
+datawide <- ts(AirPassengers, frequency = 12, start=c(1949,1), end=c(1959,12))
+datawide
+#Create model
+fit1 <- arima(log(datawide),c(0,1,1),seasonal = list(order=c(0,1,1),period=12))
+pred <- predict(fit1,n.ahead=10*12)  # predictfor now 1960 to 1970
+pred1<-2.718^pred$pred  
+pred1  #give op of 1960 to 1970
+-------------------------------------------------------------------------------------------------------------------------------------------
+Practical No. 6 
+Aim: Logistic Regression 
+Q 1) 
+# Read data 
+loan<-read.csv(file.choose(),header=T,sep=",") 
+# To extract first few lines of data 
+head(loan) 
+# To check summary of entire data 
+summary(loan) 
+# To check data type of every variable in dataset 
+str(loan) 
+loan$AGE<-as.factor(loan$AGE) 
+str(loan) 
+
+names(loan) 
+# creating model 
+model1<-glm(DEFAULTER~.,family = binomial,data = loan) 
+summary(model1) 
+# global testing for the acceptance of the model 
+H0: b1 = b2 = … 
+= bk = 0 (Ho: None of the variables has significant impact) 
+H1: At least one coefficient is not zero 
+null<-glm(DEFAULTER~1,family = binomial,data=loan) 
+anova(null,model1,test = "Chisq") 
+
+Reject H0 if p value < 0.05 
+# predicting the probabilities 
+loan$predprob<-round(fitted(model1),2) 
+head(loan) 
+# goodness of fit using receiver Operational Curve 
+pred<-predict(model1,loan,type="response") 
+install.packages("ROCR") 
+library(ROCR) 
+rocrpred<-prediction(pred,loan$DEFAULTER) 
+The prediction function creates an object that the performance function can use for 
+computing performance metrics like true positive rate (TPR/recall) and false positive rate 
+(FPR). 
+rocrperf<-performance(rocrpred,"tpr","fpr") 
+This computes performance metrics for the model and prepares data for plotting an ROC 
+curve.It outputs a performance object (rocrperf) that can be used to plot an ROC curve 
+(plotting TPR vs. FPR). 
+# To check proper cut off point 
+plot(rocrperf,colorize=TRUE,print.cutoffs.at=seq(0.1,by=0.1)) 
+auc <- performance(rocrpred, measure = "auc") 
+auc <- auc@y.values[[1]] 
+auc 
+
+# To check coefficients 
+coef(model1) 
+exp(coef(model1)) 
+Q 2) 
+# Installing the package 
+install.packages("dplyr") 
+# Loading package 
+library(dplyr) 
+
+# Summary of dataset in package 
+summary(mtcars) 
+# For Logistic regression 
+install.packages("caTools") 
+# For ROC curve to evaluate model 
+install.packages("ROCR") 
+# Loading package 
+library(caTools) 
+library(ROCR) 
+# Splitting dataset 
+
+split <- sample.split(mtcars, SplitRatio = 0.8) 
+split 
+train_reg <- subset(mtcars, split == "TRUE") 
+test_reg <- subset(mtcars, split == "FALSE") 
+# Training model 
+logistic_model <- glm(vs ~ wt + disp,data = train_reg,family = "binomial") 
+logistic_model 
+# Summary 
+summary(logistic_model) 
+predict_reg <- predict(logistic_model, 
+test_reg, type = "response") 
+
+predict_reg 
+# Changing probabilities 
+predict_reg <- ifelse(predict_reg >0.5, 1, 0) 
+# Evaluating model accuracy 
+# using confusion matrix 
+table(test_reg$vs, predict_reg) 
+missing_classerr <- mean(predict_reg != test_reg$vs) 
+print(paste('Accuracy =', 1 - missing_classerr)) 
+# ROC-AUC Curve 
+ROCPred <- prediction(predict_reg, test_reg$vs) 
+ROCPer <- performance(ROCPred, measure = "tpr",x.measure = "fpr") 
+ 
+auc <- performance(ROCPred, measure = "auc") 
+auc <- auc@y.values[[1]] 
+auc 
+# Plotting curve 
+plot(ROCPer) 
+plot(ROCPer, colorize = TRUE, 
+print.cutoffs.at = seq(0.1, by = 0.1), 
+main = "ROC CURVE") 
+abline(a = 0, b = 1) 
+auc <- round(auc, 4) 
+legend(.6, .4, auc, title = "AUC", cex = 1) 
+Q 3) 
+# Load the dataset 
+data(Titanic) 
+Mulund Collage of Commerce (Autonomous) 
+Data Science 
+Ayushi Panchal                                                                                                                             
+248705 
+# Convert the table to a data frame 
+data <- as.data.frame(Titanic) 
+# Fit the logistic regression model 
+model <- glm(Survived ~ Class + Sex + Age, family = binomial, data = data) 
+# View the summary of the model 
+summary(model) 
+# Install and load the required packages 
+install.packages("ROCR") 
+library(ROCR) 
+# Fit the logistic regression model 
+model <- glm(Survived ~ Class + Sex + Age, family = binomial, data = data) 
+# Make predictions on the dataset 
+predictions <- predict(model, type = "response") 
+# Create a prediction object for ROCR 
+prediction_objects <- prediction(predictions, data$Survived) 
+# Create an ROC curve object 
+roc_object <- performance(prediction_objects, measure = "tpr", x.measure = "fpr") 
+# Plot the ROC curve 
+plot(roc_object, main = "ROC Curve", col = "blue", lwd = 2) 
+
+# Add labels and a legend to the plot 
+legend("bottomright", legend = 
+paste("AUC =", round(performance(prediction_objects, measure = "auc") 
+@y.values[[1]], 2)), col = "blue", lwd = 2) 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Practical 8- Principal Component Analysis
+
+Q1)	PCA and Principal Component Regression (PCR) on iris dataset
+
+#Load the Dataset
+data("iris")
+#View the First Few Rows
+head(iris)
+# Summary Statistics
+summary(iris)
+#To find principal component
+•	prcomp(): Performs PCA.
+•	iris[, -5]: Removes the 5th column (Species) since PCA works on numerical data only.
+•	scale = TRUE: Standardizes the data (centers and scales each variable).
+mypr<-prcomp(iris[,-5],scale=T)
+#To understand use of scale
+•	scale() standardizes the data (mean = 0, standard deviation = 1).
+•	This ensures both Sepal.Length and Sepal.Width are on the same scale.
+•	The scatter plot visualizes the relationship between these standardized values.
+•	Raw Plot: X and Y axes are in actual measurements (e.g., 4-8 cm). Unequal ranges may affect visualization.
+•	Scaled Plot: X and Y axes are in standard deviation units (typically from -2 to +2). Equalizes variable ranges, making patterns clearer.
+
+plot(iris$Sepal.Length,iris$Sepal.Width)
+plot(scale(iris$Sepal.Length),scale(iris$Sepal.Width))
+
+# Check PCA Object
+•	Displays standard deviations of principal components.
+•	Shows rotation matrix (loadings), which tells how original variables contribute to PCs.
+Mypr
+# PCA Summary
+•	PC1 explains 72.7% of variance, PC1 + PC2 = 95.7% → Major patterns captured.
+•	The last two PCs contribute very little, meaning we can reduce dimensions.
+•	The proportion of variance tells how much of the total dataset variance is explained by each principal component (PC).
+•	The cumulative proportion represents the total variance explained when adding up multiple principal components (PCs).
+summary(mypr)
+#Creates a Scree Plot 
+•	X-axis → Principal Components (PC1, PC2, PC3, etc.)
+•	Y-axis → Standard deviation (variance explained by each PC)
+•	type="l" → Uses a line plot instead of default bar plot
+•	Look for the "elbow" point:The point where the curve starts to flatten.
+•	PCs before this point explain most of the variance.PCs after this point add little new information.
+
+plot(mypr,type="l")
+
+#Creates a PCA Biplot 
+•	X-axis & Y-axis → First two principal components (PC1 & PC2)
+•	Points → Individual data observations (iris flowers)
+•	Arrows → Original variables (Sepal.Length, Sepal.Width, etc.)
+#Direction of Arrows (Variables)
+•	The longer the arrow, the more important that variable is for PC1 or PC2.
+•	Arrows pointing in similar directions → Variables are correlated.
+•	Arrows pointing opposite directions → Variables are negatively correlated.
+#Position of Data Points
+•	Similar points (observations) will be close together.
+•	Different species may form clusters in PC space.
+biplot(mypr,scale=0)
+
+# Displays the structure of the mypr PCA object and extract pc scores
+Interpreting Each Component
+Component	Description	How to Use It?
+sdev	Standard deviation of each principal component (PC).	Higher sdev means the PC explains more variance.
+rotation	Loadings (eigenvectors) showing how original variables contribute to each PC.	Check how much each variable influences each PC.
+center	Mean values of original variables (used for centering).	Shows the average feature values before PCA.
+scale	Standard deviation of original variables (used for scaling).	Indicates the original variable dispersion before PCA.
+x	Transformed data (PCA scores), representing each observation in the new PC space.	Use for clustering, visualization, or further analysis.
+
+str(mypr)
+
+#  Displays the transformed dataset in PCA space (also called PCA scores).
+•	Rows represent observations (samples).
+•	Columns represent principal components (PCs).
+mypr$x
+
+# Combines the original iris dataset with the first two principal components (PC1 & PC2).
+•	Creates a new dataset (iris2) with both original features and PCA-transformed values.
+iris2<-cbind(iris,mypr$x[,1:2])
+head(iris2)
+
+# Computes the correlation between:
+•	iris[,-5] → The original numeric features (Sepal.Length, Sepal.Width, Petal.Length, Petal.Width).
+•	iris2[,6:7] → The first two principal components (PC1, PC2).
+#Interpreting the Correlation Matrix
+•	PC1 is strongly correlated with Petal.Length & Petal.Width (0.99 & 0.96)
+o	PC1 mostly captures variance in petal size.
+•	PC2 is strongly correlated with Sepal.Width (0.91)
+o	PC2 represents variations in sepal width.
+•	Sepal.Length & Petal.Length are highly correlated with PC1
+o	Higher Sepal/Petal Length values → Higher PC1 values.
+•	Sepal.Width has a negative correlation with PC1 (-0.41)
+o	Wider sepals → Lower PC1 values.
+cor(iris[,-5],iris2[,6:7])
+
+#Performs Principal Component Regression (PCR).
+•	Predicts Sepal.Length using principal components of the independent variables.
+•	Uses first 3 principal components (ncomp = 3) for modeling.
+•	Scales the data (scale = TRUE) for standardization.
+install.packages("pls")
+library(pls)
+names(iris)
+pcmodel<-pcr(Sepal.Length~Species+Sepal.Width+Petal.Length+Petal.Width, ncomp=3 ,data=iris,scale=T)
+
+# Predicts Sepal.Length for all rows in the iris dataset.
+•	Uses Principal Component Regression (PCR) with only the first 2 principal components (ncomp = 2).
+•	Stores the predictions in a new column pred in the iris dataset.
+iris$pred<-predict(pcmodel,iris,ncomp = 2)
+head(iris)
+
+Q 2) PCA and Principal Component Regression (PCR) on mtcars dataset
+1. Load & Explore mtcars Dataset
+data(mtcars)  # Load dataset
+head(mtcars)  # View first few rows
+summary(mtcars)  # Summary statistics
+2. Compute Principal Components
+mypr_mtcars <- prcomp(mtcars, scale = TRUE)  # Perform PCA with scaling
+3. Visualizing the Effect of Scaling
+plot(mtcars$mpg, mtcars$hp, main = "Original Data")
+plot(scale(mtcars$mpg), scale(mtcars$hp), main = "Scaled Data")
+4. PCA Results
+mypr_mtcars
+summary(mypr_mtcars)  # Check variance explained by each PC
+plot(mypr_mtcars, type = "l")  # Scree plot (Elbow method)
+biplot(mypr_mtcars, scale = 0)  # Visualize variable contributions
+
+5. Extract PCA Scores & Correlation
+str(mypr_mtcars)  # Check PCA structure
+mypr_mtcars$x  # Get PCA-transformed values
+
+mtcars2 <- cbind(mtcars, mypr_mtcars$x[, 1:2])  # Add PC1, PC2 to dataset
+head(mtcars2)  
+cor(mtcars[, -1], mtcars2[, 12:13])  # Correlation between original variables & PCs
+6. Principal Component Regression (PCR)
+install.packages("pls")  # Install if not available
+library(pls)
+pcmodel_mtcars <- pcr(mpg ~ ., ncomp = 3, data = mtcars, scale = TRUE)
+•	Predicting mpg (fuel efficiency) using all other car features with PCA.
+•	Using 3 principal components (ncomp = 3) instead of raw variables.
+7. Predict mpg Using PCR
+mtcars$pred <- predict(pcmodel_mtcars, mtcars, ncomp = 2)
+head(mtcars)
+
+Q 3) PCA and Principal Component Regression (PCR) on USArrests
+# Load Required Packages
+install.packages("pls")  # Install pls package if not installed
+library(pls)  # Load pls for PCR
+
+# 1. Load & Explore the USArrests Dataset
+data(USArrests)  # Load dataset
+head(USArrests)  # View first few rows
+summary(USArrests)  # Summary statistics
+
+# 2. Compute Principal Components
+mypr_USArrests <- prcomp(USArrests, scale = TRUE)  # Perform PCA with scaling
+
+# 3. Visualizing the Effect of Scaling
+par(mfrow = c(1, 2))  # Set plotting area for side-by-side plots
+plot(USArrests$Murder, USArrests$Assault, main = "Original Data", xlab = "Murder", ylab = "Assault")
+plot(scale(USArrests$Murder), scale(USArrests$Assault), main = "Scaled Data", xlab = "Scaled Murder", ylab = "Scaled Assault")
+
+# 4. PCA Results
+print(mypr_USArrests)  # Display PCA object (standard deviations & rotation matrix)
+summary(mypr_USArrests)  # Check variance explained by each PC
+plot(mypr_USArrests, type = "l", main = "Scree Plot")  # Scree plot (Elbow method)
+biplot(mypr_USArrests, scale = 0)  # PCA Biplot (PC1 & PC2 visualization)
+
+# 5. Extract PCA Scores & Correlation
+str(mypr_USArrests)  # Check PCA structure
+print(mypr_USArrests$x)  # Get PCA-transformed values
+
+# Add PC1 & PC2 to the dataset
+USArrests2 <- cbind(USArrests, PC1 = mypr_USArrests$x[, 1], PC2 = mypr_USArrests$x[, 2])
+head(USArrests2)  # View dataset with PCs
+
+# Compute Correlation Between Original Variables & PCs
+cor(USArrests, USArrests2[, c("PC1", "PC2")])
+
+# 6. Principal Component Regression (PCR)
+pcmodel_USArrests <- pcr(Murder ~ ., ncomp = 3, data = USArrests, scale = TRUE)
+
+# 7. Predict Murder Rate Using PCR
+USArrests$pred <- predict(pcmodel_USArrests, USArrests, ncomp = 2)
+head(USArrests)  # View dataset with predictions
+-------------------------------------------------------------------------------------------------------------------------
+pr 5 
+index<-read.csv(file.choose(),sep=",",header = T)
+names(index)
+pairs(~index+written+language+tech+gk,data = index)
+model1<-lm(index~.,data = index)
+summary(model1)
+index$pred<-fitted(model1)
+head(index)
+index$res<-residuals(model1)
+head(index)
+"to check the multicolinearity "
+library(car)
+vif(model1)
+"plot must be random indicates no heteroscedasticity"
+plot(index$pred,index$res,col="red")
+
+"errors are assumed to be normally destributed"
+shapiro.test(index$res)
+
+"detecting heteroscedasticity using ncvtest"
+library(car)
+ncvTest(model1,~written+language+tech+ gk)
+
+"detecting autocorelation using derbin watson test d=2(1-r) "
+library(car)
+durbinWatsonTest(model1)
+
+
+"influence plot"
+influencePlot(model1)
+index<-index[-33,]
+
+
+"validation using hold - out method "
+library("caret")
+library("lattice")
+library("ggplot2")
+index<-read.csv(file.choose(),sep=",",header = T)
+summary(index)
+data<-createDataPartition(index$empid,p=0.8,list=F)
+head(data)
+dim(data)
+
+traindata<-index[data,]
+testdata<-index[-data,]
+dim(traindata)
+dim(testdata)
+
+names(traindata)
+modeltrain<-lm(index~written+language+tech+gk,data=traindata)
+modeltrain$res<-residuals(modeltrain)
+RMSEtrain<-sqrt(mean(modeltrain$res**2))
+RMSEtrain
+
+testdata$pred<-predict(modeltrain,testdata)
+testdata$res<-testdata$index-testdata$pred
+RMSEtest<-sqrt(mean(testdata$res**2))
+RMSEtest
+
+
+"validation using k fold method "
+library("caret")
+kfolds<-trainControl(method = "cv",number = 4)
+modelkfold<-train(index~written+language+tech+gk,data = index,method="lm",trControl=kfolds)
+modelkfold
+
+"validation using repetative k fold"
+kfoldsrp<-trainControl(method = "repeatedcv",number = 4,repeats = 5)
+modelkfoldsrp<-train(index~written+language+tech+gk,data = index,method="lm",trControl=kfoldsrp)
+modelkfoldsrp
+
+
+"validation usning leave one out"
+kfoldsloocv<-trainControl(method = "LOOCV")
+kfoldsloocvmodel<-train(index~written+language+tech+gk,data = index,method="lm",trControl=kfoldsloocv)
+kfoldsloocvmodel
+
+"model selection forward"
+null<-lm(index~1,data=index)
+full<-lm(index~written+language+tech+gk,data = index)
+names(index)
+step(null,scope = list(lower=null,upper=full),direction = "forward")
+
+"model selection backword"
+step(full,scope=list(lower=null,upper=full),direction = "backward")
+	
+
+
+
+
+
+
+
